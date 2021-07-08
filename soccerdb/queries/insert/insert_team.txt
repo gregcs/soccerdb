@@ -1,0 +1,64 @@
+CREATE OR REPLACE FUNCTION insert_team (id_user INTEGER, id_team INTEGER, long_name VARCHAR, short_name VARCHAR(10)) RETURNS INTEGER AS $$
+	
+	-- funzione per inserire team (id_user INTEGER, id_team INTEGER, long_name VARCHAR, short_name VARCHAR(10))
+	-- concesso solo ad administrator
+	-- vanno specificati obbligatoriamente tutti i parametri
+	/*
+		valori di ritorno: 
+		  1 se team viene inserito correttamente
+		-10 se non vengono specificati tutti i parametri
+		-20 se utente non è presente a sistema
+		-30 se utente non è autorizzato
+		-40 se team è già presente a sistema
+	*/
+	
+	DECLARE
+		ret INTEGER;
+		usr dbuser%ROWTYPE;
+		tm team%ROWTYPE;
+
+	BEGIN
+		
+		IF id_user IS NULL OR id_team IS NULL OR long_name IS NULL OR short_name IS NULL THEN
+		
+			RAISE INFO  'bisogna specificare tutti i parametri';
+			ret := -10;
+			
+		ELSE
+		
+			SELECT * INTO usr FROM dbuser WHERE id = id_user;
+			
+			IF FOUND THEN
+			
+				IF usr.role != 'administrator' THEN
+				
+					RAISE INFO  'utente non autorizzato ad inserire team';
+					ret := -30;
+					
+				ELSE
+				
+					SELECT * INTO tm FROM team WHERE id = id_team;
+					
+					IF FOUND THEN
+					
+						RAISE INFO  'Il team % è già presente a sistema', id_team;
+						ret := -40;
+						
+					ELSE
+						INSERT INTO team VALUES (id_team,long_name,short_name);
+						ret := 1;
+					END IF;
+					
+				END IF;
+				
+			ELSE
+				RAISE INFO  'utente % non presente a sistema', id_user;
+				ret := -20;
+			END IF;
+			
+		END IF;
+		
+		RETURN ret;
+	END;
+
+$$ LANGUAGE plpgsql;

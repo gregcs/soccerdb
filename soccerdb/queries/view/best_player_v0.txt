@@ -1,0 +1,66 @@
+CREATE VIEW best_player  AS (
+
+WITH most_recent_attribute (match, team, player, attribute_date, overall_rating) AS (
+	SELECT m.id AS match, f.team, f.player, s.attribute_date, s.overall_rating
+	FROM match AS m
+	JOIN formation AS f
+	ON m.id = f.match
+	JOIN playerstats as s
+	ON s.player = f.player
+	WHERE s.attribute_date >= m.date AND s.attribute_date <= ALL (
+		SELECT attribute_date
+		FROM match AS m1
+		LEFT JOIN formation AS f1
+		ON m1.id = f1.match
+		LEFT JOIN playerstats as s1
+		ON s1.player = f1.player
+		WHERE s1.attribute_date >= m1.date AND m1.id = m.id AND f1.player = f.player
+		)
+),
+
+best_home_player (match, team, player, attribute_date, overall_rating) AS (
+	SELECT m.id AS match, m.home as team, f.player, a.attribute_date, a.overall_rating
+	FROM match AS m
+	JOIN formation AS f
+	ON m.id = f.match AND m.home = f.team
+	JOIN most_recent_attribute AS a
+	ON a.match = m.id AND f.player = a.player
+	WHERE a.overall_rating >= ALL (
+		SELECT a1.overall_rating
+		FROM match AS m1
+		JOIN formation AS f1
+		ON m1.id = f1.match AND m1.home = f1.team
+		JOIN most_recent_attribute AS a1
+		ON a1.match = m1.id AND f1.player = a1.player
+		WHERE m1.id= m.id)
+),
+
+best_away_player (match, team, player, attribute_date, overall_rating) AS (
+	SELECT m.id AS match, m.away as team, f.player, a.attribute_date, a.overall_rating
+	FROM match AS m
+	JOIN formation AS f
+	ON m.id = f.match AND m.away = f.team
+	JOIN most_recent_attribute AS a
+	ON a.match = m.id AND f.player = a.player
+	WHERE a.overall_rating >= ALL (
+		SELECT a1.overall_rating
+		FROM match AS m1
+		JOIN formation AS f1
+		ON m1.id = f1.match AND m1.away = f1.team
+		JOIN most_recent_attribute AS a1
+		ON a1.match = m1.id AND f1.player = a1.player
+		WHERE m1.id= m.id)
+)
+
+SELECT m.id as match,m.home as home_team_id,
+bh.player AS best_home_player_id ,bh.overall_rating AS best_home_player_rating, hp.name as best_home_player_name, hp.birthday as best_home_player_birthday, hp.weight as best_home_player_weight, hp.height as best_home_player_height, 
+m.away as away_team_id, ba.player as best_away_player_id ,ba.overall_rating as best_away_player_rating , ap.name as best_away_player_name, ap.birthday as best_away_player_birthday, ap.weight as best_away_player_weight, ap.height as best_away_player_height
+FROM match as m
+LEFT JOIN best_home_player AS bh
+ON m.id = bh.match
+LEFT JOIN best_away_player AS ba
+ON m.id = ba.match
+JOIN player AS hp ON bh.player = hp.id
+JOIN player AS ap ON ba.player = ap.id
+
+)

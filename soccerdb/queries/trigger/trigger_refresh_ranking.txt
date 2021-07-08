@@ -1,0 +1,11 @@
+CREATE OR REPLACE FUNCTION functgr_refresh_ranking () RETURNS trigger AS
+$$
+
+	BEGIN
+		REFRESH MATERIALIZED VIEW ranking;
+		RETURN NULL;
+	END;
+
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER functgr_refresh_ranking AFTER INSERT OR UPDATE OR DELETE ON match FOR EACH STATEMENT EXECUTE PROCEDURE functgr_refresh_ranking();

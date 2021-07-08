@@ -1,0 +1,77 @@
+CREATE OR REPLACE FUNCTION update_user (id_user INTEGER, userToUpdate INTEGER, new_username VARCHAR, new_password VARCHAR, new_role VARCHAR, new_betcompany VARCHAR(10)) RETURNS void AS $$ 
+
+	--funzione per permettere di aggiornare utenti(id_user INTEGER, userToUpdate INTEGER, new_username VARCHAR, new_password VARCHAR, new_role VARCHAR, new_betcompany VARCHAR(10))
+	--è necessario specificare i parametri id_user (utente che compie aggiornamento) e userToUpdate
+	--se utente con id_user è admin allora può aggiornare qualsiasi utente altrimenti un utente non administrator può aggiorare solo sè stesso
+	--se new_username e/o new_password e/o new_role vengono specificati con valore NULL il record viene aggiornato con i valori già esistenti
+	--se l'utente che si vuole aggiornare è partner e deve rimanere partner anche dopo l'aggiornamento va specificato anche new_betcompany
+	
+	DECLARE
+	
+		usr dbuser%ROWTYPE;
+		updUsr dbuser%ROWTYPE;
+		
+		update_username VARCHAR;
+		update_password VARCHAR;
+		update_role VARCHAR;
+		update_betcompany VARCHAR(10);
+		
+	BEGIN
+		
+		IF id_user IS NULL OR userToUpdate IS NULL THEN
+			RAISE EXCEPTION 'bisogna specificare id_user (utente che compie aggiornamento) e userToUpdate';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+		
+		IF usr.role != 'administrator' AND usr.id != userToUpdate THEN
+			RAISE EXCEPTION 'solo gli amministratori possono aggiornare altri utenti';
+		END IF;
+		
+		SELECT * INTO updUsr FROM dbuser WHERE id = userToUpdate;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % da aggiornare non presente a sistema', userToUpdate;
+		END IF;
+		
+		IF new_username IS NOT NULL THEN
+			update_username := new_username;
+		ELSE
+			update_username := updUsr.username;
+		END IF;
+		
+		IF new_password IS NOT NULL THEN
+			update_password := new_password;
+		ELSE
+			update_password := updUsr.password;
+		END IF;
+
+		IF new_role IS NOT NULL THEN
+			update_role := new_role;
+		ELSE
+			update_role := updUsr.role;
+		END IF;
+		
+		IF updUsr.role = 'partner' AND update_role = 'partner' AND new_betcompany IS NULL THEN
+			update_betcompany := updUsr.betcompany;
+		END IF;
+		
+		IF updUsr.role = 'partner' AND update_role = 'partner' AND new_betcompany IS NOT NULL THEN
+			update_betcompany := new_betcompany;
+		END IF;
+		
+		IF update_role = 'administrator' OR update_role = 'operator' AND new_betcompany IS NOT NULL THEN
+			RAISE EXCEPTION 'solo gli utenti partner possono essere associati a società di scommesse';
+		END IF;
+	
+		IF update_role = 'administrator' OR update_role = 'operator' THEN
+			update_betcompany := NULL;
+		END IF;
+
+		UPDATE dbuser SET username = update_username, password = update_password, role = update_role, betcompany = update_betcompany WHERE id = updUsr.id;
+		
+	END;
+
+$$ LANGUAGE plpgsql;

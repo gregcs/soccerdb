@@ -1,0 +1,13 @@
+CREATE VIEW most_recent_attribute(match,home, away, team, player, attribute_date, overall_rating) AS (
+	SELECT M.id AS match, M.home, M.away, F.team, F.player, PS.attribute_date, PS.overall_rating
+	FROM match AS M
+	JOIN formation AS F
+	ON M.id = F.match
+	JOIN playerstats AS PS
+	ON F.player = PS.player
+	WHERE PS.attribute_date >= M.date AND PS.attribute_date <= ALL(
+		SELECT PSI.attribute_date
+		FROM playerstats AS PSI
+		WHERE PSI.player = PS.player AND PSI.attribute_date >= M.DATE
+	)
+)

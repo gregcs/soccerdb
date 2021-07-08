@@ -1,0 +1,34 @@
+CREATE OR REPLACE FUNCTION delete_player (id_user INTEGER, playerToDelete INTEGER) RETURNS void AS $$
+
+	--funzione per cancellare player (id_user INTEGER, playerToDelete VARCHAR)
+	--concesso solo ad administrator
+	--vanno specificati tutti i parametri
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		pl	player%ROWTYPE;
+	BEGIN
+		
+		IF id_user IS NULL OR playerToDelete IS NULL THEN
+			RAISE EXCEPTION 'i parametri vanno tutti obbligatoriamente specificati';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'administrator' THEN
+			RAISE EXCEPTION 'utente non autorizzato a cancellare player';
+		END IF;
+				
+		SELECT * INTO pl FROM player WHERE id = playerToDelete;
+		IF  NOT FOUND THEN	
+			RAISE EXCEPTION 'Il player % non è presente a sistema', playerToDelete;
+		END IF;
+			
+		DELETE FROM team WHERE id = playerToDelete;
+		
+	END;
+	
+$$ LANGUAGE plpgsql;

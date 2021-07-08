@@ -1,0 +1,56 @@
+CREATE OR REPLACE FUNCTION update_league (id_user INTEGER, leagueToUpdate VARCHAR, new_name VARCHAR, new_country VARCHAR) RETURNS void AS $$ 
+
+	--funzione per aggiornare league (id_user INTEGER, curr_name VARCHAR,  new_name VARCHAR, new_country VARCHAR)
+	--concesso solo ad administrator
+	--bisogna obbligatoriamente specificare id_user e leagueToUpdate
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		lg	league%ROWTYPE;
+		lgn league%ROWTYPE;
+		
+		update_name VARCHAR;
+		update_country VARCHAR;
+		
+	BEGIN
+		
+		IF id_user IS NULL OR curr_name IS NULL THEN
+			RAISE EXCEPTION 'bisogna specificare id_user (utente che compie aggiornamento) e leagueToUpdate';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'administrator' THEN
+			RAISE EXCEPTION 'utente non autorizzato ad aggiornare league';
+		END IF;
+		
+		SELECT * INTO lg FROM league WHERE name = leagueToUpdate;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'la lega % non è presente a sistema', leagueToUpdate;
+		END IF;
+		
+		IF new_country IS NOT NULL THEN
+			update_country := new_country;
+		ELSE
+			update_country := lg.country;
+		END IF;
+		
+		IF new_name IS NOT NULL THEN
+			PERFORM * FROM league WHERE name = new_name;
+			IF FOUND THEN
+				RAISE EXCEPTION 'la lega % è già presente a sistema', new_name;
+			ELSE
+				update_name := new_name;
+			END IF;
+		ELSE
+			update_name := lg.name;
+		END IF;
+							
+		UPDATE league SET name = update_name, country = update_country WHERE name = leagueToUpdate;			
+					
+	END;
+
+$$ LANGUAGE plpgsql;

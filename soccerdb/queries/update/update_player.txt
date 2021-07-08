@@ -1,0 +1,58 @@
+CREATE OR REPLACE FUNCTION update_player (id_user INTEGER, playerToUpdate INTEGER, new_id_player INTEGER, new_name VARCHAR, new_birthday DATE, new_weight FLOAT, new_height FLOAT) RETURNS void AS $$ 
+
+	--funzione per aggiornare player (id_user INTEGER, playerToUpdate INTEGER, new_id_player INTEGER, new_name VARCHAR, new_birthday DATE, new_weight FLOAT, new_height FLOAT)
+	--concesso solo ad administrator
+	--è necessario specificare id_user  e playerToUpdate
+
+	DECLARE
+		usr dbuser%ROWTYPE;
+		pl	player%ROWTYPE;
+		
+		update_id_player INTEGER;
+		update_name VARCHAR;
+		update_birthday DATE;
+		update_weigth FLOAT;
+		update_height FLOAT;
+		
+	BEGIN
+		
+		IF id_user IS NULL OR teamToUpdate IS NULL THEN
+			RAISE EXCEPTION 'bisogna specificare id_user (utente che compie aggiornameto) e playerToUpdate';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+	
+		IF usr.role != 'administrator' THEN
+			RAISE EXCEPTION 'utente non autorizzato ad inserire player';
+		END IF;
+
+		SELECT * INTO pl FROM player WHERE id = teamToUpdate;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'Il player % non è presente a sistema', teamToUpdate;
+		END IF;
+		
+		IF new_id_player IS NOT NULL THEN
+		PERFORM * FROM player WHERE id = new_id_player;
+		IF FOUND THEN
+			RAISE EXCEPTION 'Il player % è già presente a sistema', new_id_player;
+			ELSE
+				update_id_player := new_id_player;
+			END IF;
+		ELSE
+			update_id_player := pl.id;
+		END IF;
+		
+		IF new_name IS NOT NULL THEN
+			update_name := new_name;
+		ELSE
+			update_name := pl.name;
+		END IF;
+						
+		UPDATE player SET id = update_id_player, name = update_name, birthday = new_birthday, weight = new_weight, height = new_height WHERE id = teamToUpdate;
+		
+	END;
+
+$$ LANGUAGE plpgsql;

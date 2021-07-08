@@ -1,0 +1,128 @@
+CREATE OR REPLACE FUNCTION insert_formation (id_user INTEGER, new_match INTEGER, new_player INTEGER, new_team INTEGER) RETURNS INTEGER AS $$
+	
+	-- funzione per inserire formation (id_user INTEGER, new_match INTEGER, new_player INTEGER, new_team INTEGER)
+	-- concesso solo a operator
+	-- vanno specificati obbligatoriamente tutti i parametri
+	/*
+		valori di ritorno: 
+		 1  se formation viene inserita correttamente
+		-10 se non vengono specificati tutti i parametri
+		-20 se utente non presente a sistema
+		-30 se utente non è autorizzato
+		-40 se formation già presente
+		-50 se match non presente
+		-60 se utente non può inserire formation per questo match
+		-70 se player non presente
+		-80 se team non presente
+		-90 se il team è al già al completo (11 giocatori)
+		-100 se il player gioca già in un team per il match dato
+	*/
+	
+	DECLARE
+		ret INTEGER;
+		usr dbuser%ROWTYPE;
+		mt match%ROWTYPE;
+		fm formation%ROWTYPE;
+		pl player%ROWTYPE;
+		tm team%ROWTYPE;
+		numberFormation INTEGER;
+		count INTEGER;
+		
+	BEGIN
+		
+		IF id_user IS NULL OR new_match IS NULL OR new_player IS NULL OR new_team IS NULL THEN
+		
+			RAISE INFO 'bisogna obbligatoriamente specificare tutti i parametri';
+			ret := -10;
+			
+		ELSE
+		
+			SELECT * INTO usr FROM dbuser WHERE id = id_user;
+			IF FOUND THEN
+			
+				IF usr.role != 'operator' THEN
+				
+					RAISE INFO 'utente non autorizzato ad inserire formation';
+					ret := -30;
+					
+				ELSE
+				
+					SELECT * INTO mt FROM match WHERE id = new_match;
+					IF FOUND THEN
+						
+						IF mt.dbuser = id_user THEN 
+						
+							SELECT * INTO pl FROM player WHERE id = new_player;
+							IF FOUND THEN
+								
+								SELECT * INTO tm FROM team WHERE id = new_team;
+								IF FOUND THEN
+											
+									SELECT * INTO fm FROM formation WHERE match = new_match AND player = new_player AND team = new_team;
+									IF FOUND THEN
+										RAISE INFO 'formation m % p % t % è già presente a sistema', new_match, new_player, new_team;
+										ret := -40;		
+									ELSE
+										
+										numberFormation := (SELECT count(*)::int FROM formation WHERE match = new_match AND player = new_player);
+										IF numberFormation > 0 THEN
+											RAISE INFO 'Il player % gioca già in questo match', new_player;
+											ret := -100;
+										ELSE
+										
+											count := (SELECT count(*)::int FROM formation WHERE match = new_match AND team = new_team);
+											IF count < 11 THEN
+										
+												INSERT INTO formation VALUES (new_match,new_player,new_team);
+												ret := 1;
+											
+											ELSE 
+												RAISE INFO 'il team % è già al completo', new_team;
+												ret := -90;
+											END IF;
+											
+										END IF;
+										
+									END IF;
+										
+								ELSE
+									RAISE INFO 'team % non presente a sistema', new_team;
+									ret := -80;
+								END IF;
+							
+							ELSE
+								RAISE INFO 'player % non presente a sistema', new_player;
+								ret := -70;
+							END IF;
+					
+						ELSE
+							RAISE INFO 'solo utente % può inserire la formazione per questo match %', mt.dbuser, new_match;
+							ret := -60;
+						END IF;
+						
+					ELSE
+						RAISE INFO 'match % non presente a sistema', new_match;
+						ret := -50;
+					END IF;
+					
+				END IF;
+				
+			ELSE
+				RAISE INFO 'utente % non presente a sistema', id_user;
+				ret := -20;
+			END IF;
+			
+		END IF;
+		
+		RETURN  ret;
+		
+	END;
+
+$$ LANGUAGE plpgsql;
+
+
+
+
+
+
+					

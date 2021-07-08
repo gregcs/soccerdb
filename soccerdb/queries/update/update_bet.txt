@@ -1,0 +1,59 @@
+CREATE OR REPLACE FUNCTION update_bet (id_user INTEGER, id_match INTEGER, new_h FLOAT, new_d FLOAT, new_a FLOAT) RETURNS void AS $$ 
+
+	--funzione per aggiornare bet(id_user INTEGER, match INTEGER, h FLOAT, d FLOAT, a FLOAT)
+	--concesso solo al partner che ha inserito la scommessa
+	--è necessario specificare i parametri id_user (utente che compie aggiornamento), match
+	--se h o d o a vengono specificati NULL il record viene aggiornato con i valori vecchi 
+	
+	DECLARE
+	
+		usr dbuser%ROWTYPE;
+		bt 	bet%ROWTYPE;
+		
+		update_h INTEGER;
+		update_d INTEGER;
+		update_a INTEGER;
+		
+	BEGIN
+		
+		IF id_user IS NULL OR id_match IS NULL THEN
+			RAISE EXCEPTION 'bisogna specificare id_user (utente che compie aggiornamento) e id_match';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+		
+		IF usr.role != 'partner' THEN
+			RAISE EXCEPTION 'solo i partner sono autorizzati ad aggiornare le scommesse';
+		END IF;
+		
+		SELECT * INTO bt FROM bet WHERE dbuser = id_user AND match = id_match ;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'la scommessa di id_user % relativa al match % non è presente a sistema', id_user, id_match;
+		END IF;
+		
+		IF new_h IS NOT NULL THEN
+			update_h := new_h;
+		ELSE
+			update_h := bt.h;
+		END IF;
+		
+		IF new_d IS NOT NULL THEN
+			update_d := new_d;
+		ELSE
+			update_d := bt.d;
+		END IF;
+
+		IF new_a IS NOT NULL THEN
+			update_a := new_a;
+		ELSE
+			update_a := bt.a;
+		END IF;
+
+		UPDATE bet SET h = update_h, d = update_d, a = update_a WHERE dbuser = id_user AND match = id_match;
+		
+	END;
+
+$$ LANGUAGE plpgsql;

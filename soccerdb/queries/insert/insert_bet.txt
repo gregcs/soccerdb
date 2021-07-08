@@ -1,0 +1,78 @@
+CREATE OR REPLACE FUNCTION insert_bet (new_match INTEGER, new_dbuser INTEGER, new_h FLOAT, new_d FLOAT, new_a FLOAT) RETURNS INTEGER AS $$
+
+	-- funzione per inserire bet (new_match INTEGER, new_dbuser INTEGER, new_h FLOAT, new_d FLOAT, new_a FLOAT)
+	-- concesso solo a partner
+	
+	/*
+		valori di ritorno: 
+		1  se bet viene inserita correttamente
+	   -10 se non vengono specificati tutti i parametri
+	   -20 se new_h o new_d o new_a sono negativi
+	   -30 se utente non presente a sistema
+	   -40 se utente non è abilitato ad inserire bet
+	   -50 se il match non è presente a sistema
+	   -60 se è già stata inserita una bet per questo match da un'altro utente appartenente alla stessa società di scommesse
+	*/
+	
+	DECLARE
+		
+		usr dbuser%ROWTYPE;
+		insertedBets INTEGER;
+		mt match%ROWTYPE;
+		
+	BEGIN
+		
+		IF new_match IS NULL OR new_dbuser IS NULL OR new_h IS NULL OR new_d IS NULL OR new_a IS NULL THEN
+			RAISE INFO 'tutti i parametri vanno  obbligatoriamente specificati';
+			RETURN -10;
+		ELSE
+			
+			IF new_h < 0 OR new_a < 0 OR new_a < 0 THEN
+				RAISE INFO 'h,d,a non devono essere valori negativi';
+				RETURN -20;
+			ELSE
+			
+				SELECT * INTO usr FROM dbuser WHERE id = new_dbuser;
+				IF FOUND THEN
+				
+					IF usr.role = 'partner' THEN
+					
+						SELECT * INTO mt FROM match WHERE id = new_match;	
+						IF NOT FOUND THEN
+							RAISE INFO 'match già presente a sistema';
+							RETURN -50;
+						ELSE 
+						
+							--Un partner può inserire più bet per uno stesso match? Se si, si deve controllare anche bet.dbuser <> new_dbuser
+							insertedBets := (SELECT count(*)::int FROM bet JOIN dbuser ON bet.dbuser = dbuser.id WHERE dbuser.betcompany = usr.betcompany AND bet.match = new_match);
+							
+							IF insertedBets > 0 THEN
+								RAISE INFO 'è già presente una bet per match % fatta da altro utente della stessa società', new_match;
+								RETURN -60;
+							ELSE
+								INSERT INTO bet (match, dbuser, h, d, a) VALUES (new_match, new_dbuser, new_h, new_d, new_a);
+								RAISE INFO 'inserimento avvenuto con successo';
+								RETURN 1;
+							END IF;
+						
+						END IF;
+						
+					ELSE
+						RAISE INFO 'utente % non autorizzato ad inserire bet', new_dbuser;
+						RETURN -40;
+					END IF;
+			
+				ELSE
+					RAISE INFO 'utente % non presente a sistema', new_dbuser;
+					RETURN -30;
+				END IF;
+				
+			END IF;
+			
+		END IF;
+		
+
+		
+	END;
+	
+$$ LANGUAGE plpgsql;

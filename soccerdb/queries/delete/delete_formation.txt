@@ -1,0 +1,38 @@
+CREATE OR REPLACE FUNCTION delete_formation (id_user INTEGER, matchToDelete INTEGER, playerToDelete INTEGER, teamToDelete INTEGER) RETURNS void AS $$
+
+	--funzione per cancellare formation (id_user INTEGER, matchToDelete INTEGER, playerToDelete INTEGER, teamToDelete INTEGER)
+	--concesso solo ad utente operator che ha inserito il match
+	--vanno specificati tutti i parametri
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		currUsr	INTEGER;
+	BEGIN
+		
+		IF id_user IS NULL OR matchToDelete IS NULL OR playerToDelete IS NULL OR teamToDelete IS NULL THEN
+			RAISE EXCEPTION 'i parametri vanno tutti obbligatoriamente specificati';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'operator' THEN
+			RAISE EXCEPTION 'utente non autorizzato a cancellare formation';
+		END IF;
+				
+		SELECT match.dbuser INTO currUsr FROM formation JOIN match ON formation.match = match.id WHERE formation.match = matchToDelete AND formation.player = playerToDelete AND formation.team = teamToDelete;
+		IF  NOT FOUND THEN	
+			RAISE EXCEPTION 'formation M%P%T% non è presente a sistema', matchToDelete,playerToDelete,teamToDelete;
+		END IF;
+		
+		IF currUsr != id_user THEN
+			RAISE EXCEPTION 'solo utente % può cancellare questa formation', currUsr;
+		END IF;
+			
+		DELETE FROM formation WHERE match = matchToDelete AND player = playerToDelete AND team = teamToDelete;
+		
+	END;
+	
+$$ LANGUAGE plpgsql;

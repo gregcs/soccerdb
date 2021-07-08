@@ -1,0 +1,35 @@
+CREATE OR REPLACE FUNCTION delete_playerstats (id_user INTEGER, playerToDelete INTEGER, attributeDateToDelete DATE) RETURNS void AS $$
+
+	--funzione per cancellare player stats (id_user INTEGER, playerToDelete INTEGER, attributeDateToDelete DATE)
+	--concesso solo ad administrator
+	--vanno specificati tutti i parametri
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		ps	playerstats%ROWTYPE;
+
+	BEGIN
+	
+		IF id_user IS NULL OR playerToDelete IS NULL OR attributeDateToDelete IS NULL THEN
+			RAISE EXCEPTION 'i parametri vanno tutti obbligatoriamente specificati';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'administrator' THEN
+			RAISE EXCEPTION 'utente non autorizzato a cancellare team';
+		END IF;
+				
+		SELECT * INTO ps FROM playerstats WHERE player = playerToDelete AND attribute_date = attributeDateToDelete;
+		IF  NOT FOUND THEN	
+			RAISE EXCEPTION 'playertstat %,% non è presente a sistema', playerToDelete,attributeDateToDelete;
+		END IF;
+			
+		DELETE FROM playerstats WHERE player = playerToDelete AND attribute_date = attributeDateToDelete;
+		
+	END;
+	
+$$ LANGUAGE plpgsql;

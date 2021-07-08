@@ -1,0 +1,68 @@
+CREATE OR REPLACE FUNCTION insert_league (id_user INTEGER, new_name VARCHAR, country VARCHAR) RETURNS INTEGER AS $$
+	
+	-- funzione per inserire league (id_user INTEGER, new_name VARCHAR, country VARCHAR)
+	-- concesso solo ad administrator
+	-- vanno specificati obbligatoriamente tutti i parametri
+	/*
+		valori di ritorno: 
+		  1 se l'inserimento va a buon fine
+		-10 se non vengono specificati tutti i parametri
+		-20 se utente non è presente a sistema
+		-30 se l'utente non è autorizzato (solo amministratore)
+		-40 se è lega già presente a sistema
+	*/
+	DECLARE
+		ret INTEGER;
+		usr dbuser%ROWTYPE;
+		lg league%ROWTYPE;
+
+	BEGIN
+		
+		IF id_user IS NULL OR new_name IS NULL OR country IS NULL THEN
+		
+			RAISE INFO 'bisogna obbligatoriamente specificare tutti i parametri';
+			ret := -10;
+			
+		ELSE
+		
+			SELECT * INTO usr FROM dbuser WHERE id = id_user;
+			
+			IF FOUND THEN
+			
+				IF usr.role != 'administrator' THEN
+				
+					RAISE INFO 'utente non autorizzato ad inserire league';
+					ret := -30;
+					
+				ELSE
+				
+					 SELECT * INTO lg FROM league WHERE name = new_name;
+					
+					IF FOUND THEN
+					
+						RAISE INFO 'La lega % è già presente a sistema', new_name;
+						ret := -40;
+						
+					ELSE
+					
+						INSERT INTO league VALUES (new_name,country);
+						ret := 1;
+						
+					END IF;
+					
+				END IF;
+				
+			ELSE
+			
+				RAISE INFO 'utente % non presente a sistema', id_user;
+				ret := -20;
+				
+			END IF;
+			
+		END IF;
+		
+		RETURN  ret;
+		
+	END;
+
+$$ LANGUAGE plpgsql;

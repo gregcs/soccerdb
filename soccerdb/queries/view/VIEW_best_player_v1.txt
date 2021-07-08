@@ -1,0 +1,31 @@
+CREATE VIEW best_player  AS (
+
+best_home_player (match, team, player, attribute_date, overall_rating) AS (
+	SELECT RA.match, RA.team, RA.player, RA.attribute_date, RA.overall_rating
+	FROM most_recent_attribute AS RA
+	WHERE RA.home = RA.team AND RA.overall_rating >= ALL(
+	SELECT overall_rating
+	FROM most_recent_attribute AS RAI
+	WHERE RAI.match = RA.match AND RAI.home = RAI.team)
+),
+
+best_away_player (match, team, player, attribute_date, overall_rating) AS (
+	SELECT RA.match, RA.team, RA.player, RA.attribute_date, RA.overall_rating
+	FROM most_recent_attribute AS RA
+	WHERE RA.away = RA.team AND RA.overall_rating >= ALL(
+	SELECT overall_rating
+	FROM most_recent_attribute AS RAI
+	WHERE RAI.match = RA.match AND RAI.away = RAI.team)
+)
+
+SELECT m.id as match,m.home as home_team_id,
+bh.player AS best_home_player_id ,bh.overall_rating AS best_home_player_rating, bh.attribute_date AS home_player_attribute_date, hp.name as best_home_player_name, hp.birthday as best_home_player_birthday, hp.weight as best_home_player_weight, hp.height as best_home_player_height, 
+m.away as away_team_id, ba.player as best_away_player_id ,ba.overall_rating as best_away_player_rating ,ba.attribute_date AS away_player_attribute_date, ap.name as best_away_player_name, ap.birthday as best_away_player_birthday, ap.weight as best_away_player_weight, ap.height as best_away_player_height
+FROM match AS M
+LEFT JOIN best_home_player AS bh 
+ON M.id = bh.match
+LEFT JOIN best_away_player AS ba 
+ON M.id = ba.match 
+LEFT JOIN player AS hp ON bh.player = hp.id
+LEFT JOIN player AS ap ON ba.player = ap.id
+)

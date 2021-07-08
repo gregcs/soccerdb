@@ -1,0 +1,80 @@
+CREATE OR REPLACE FUNCTION insert_player (id_user INTEGER, id_player INTEGER, name VARCHAR, birthday DATE, weight INTEGER, height FLOAT) RETURNS INTEGER AS $$
+	
+	-- funzione per inserire player (id_user INTEGER, id_player INTEGER, name VARCHAR, birthday DATE, weight INTEGER, height FLOAT)
+	-- concesso solo ad administrator
+	-- vanno specificati obbligatoriamente id_user, id_player e name
+	
+	/*
+		valori di ritorno: 
+		  1 se l'inserimento va a buon fine
+		-10 se non vengono specificati tutti i parametri
+		-20 se utente non è presente a sistema
+		-30 se utente non è autorizzato
+		-40 se player già presente a sistema
+		-50 se i parametri non sono validi
+	*/
+	
+	DECLARE
+	
+		ret INTEGER;
+		usr dbuser%ROWTYPE;
+		pl player%ROWTYPE;
+		
+	BEGIN
+		
+		IF id_user IS NULL OR id_player IS NULL OR name IS NULL THEN
+		
+			RAISE INFO 'bisogna obbligatoriamente specificare id_user, id_player e name';
+			ret:= -10;
+			
+		ELSE
+		
+			IF (weight IS NOT NULL AND weight < 0) OR (height IS NOT NULL AND height < 0) THEN
+			
+				RAISE INFO 'parametri non validi';
+				ret:= -50;
+				
+			ELSE 
+				SELECT * INTO usr FROM dbuser WHERE id = id_user;
+				
+				IF FOUND THEN
+				
+					IF usr.role != 'administrator' THEN
+					
+						RAISE INFO 'utente non autorizzato ad inserire player';
+						ret:= -30;
+						
+					ELSE
+					
+						SELECT * INTO pl FROM player WHERE id = id_player;
+						
+						IF FOUND THEN
+						
+							RAISE INFO 'Il player % è già presente a sistema', id_player;
+							ret:= -40;
+							
+						ELSE
+						
+							INSERT INTO player VALUES (id_player,name,birthday,weight,height);
+							ret:=1;
+							
+						END IF;
+						
+					END IF;
+					
+				ELSE
+				
+					RAISE INFO 'utente % non presente a sistema', id_user;
+					ret:= -20;
+					
+				END IF;
+				
+			END IF;
+			
+		END IF;
+		
+		RETURN ret;
+		
+	END;
+
+$$ LANGUAGE plpgsql;

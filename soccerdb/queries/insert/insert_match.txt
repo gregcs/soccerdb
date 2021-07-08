@@ -1,0 +1,134 @@
+CREATE OR REPLACE FUNCTION insert_match (id_user INTEGER, new_id INTEGER, new_date DATE, new_stage INTEGER, new_season VARCHAR, new_home INTEGER, new_away INTEGER, new_home_goal INTEGER, new_away_goal INTEGER, new_league VARCHAR, include_id INTEGER) RETURNS INTEGER AS $$
+
+	-- funzione per inserire match (id_user INTEGER, new_id INTEGER, new_date DATE, new_stage INTEGER, new_season VARCHAR, new_home INTEGER, new_away INTEGER, new_home_goal INTEGER, new_away_goal INTEGER, new_league VARCHAR, include_id INTEGER)
+	-- concesso solo ad operator
+	-- vanno specificati obbligatoriamente tutti i parametri
+	
+	/*
+		valori di ritorno: 
+		>=0 se match viene inserito correttamente (corrisponde ad id match inserito)
+		-10 se non vengono specificati tutti i parametri
+		-20 se utente non presente a sistema
+		-30 se utente non è autorizzato ad inserire match
+		-40 se match è già presente a sistema
+		-50 se viene riconosciuta uguaglianza del match con altri match non utilizzando id
+		-60 se lega non è presente a sistema
+		-70 se home team non è presente a sistema
+		-80 se away team non è presente a sistema
+		-90 se parametri non validi
+	*/
+	
+	-- nel caso include_id sia 0 bisogna comunque passare un valore non null per new_id, qualsiasi valore va bene perchè non verrà considerato
+
+
+DECLARE
+		ret INTEGER;
+		usr dbuser%ROWTYPE;
+		mt match%ROWTYPE;
+		matches match%ROWTYPE;
+		lg league%ROWTYPE;
+		awayt team%ROWTYPE;
+		homet team%ROWTYPE;
+		
+	BEGIN
+		
+		
+		IF id_user IS NULL OR new_date IS NULL OR new_stage IS NULL OR new_season IS NULL OR new_home IS NULL OR new_away IS NULL OR new_home_goal IS NULL OR new_away_goal IS NULL 
+		OR new_league IS NULL OR new_id IS NULL OR include_id IS NULL THEN
+		
+			RAISE INFO 'Tutti i parametri vanno  obbligatoriamente specificati';
+			ret := -10;
+			
+		ELSE
+			IF new_home = new_away OR new_home_goal < 0 OR new_away_goal < 0 OR new_stage < 0 THEN
+			
+				RAISE INFO 'Parametri non validi';
+				ret := -90;
+			
+			ELSE 
+		
+				SELECT * INTO usr FROM dbuser WHERE id = id_user;
+				
+				IF NOT FOUND THEN
+				
+					RAISE INFO 'Utente % non presente a sistema',id_user;
+					ret := -20;
+				
+				ELSE
+					
+					IF usr.role != 'operator' THEN
+					
+						RAISE INFO 'Utente % non ha i privilegi per inserire match', usr.id;
+						ret := -30;
+					
+					ELSE
+						
+						SELECT * INTO matches FROM match WHERE league = new_league AND date = new_date AND stage = new_stage AND season = new_season AND ((home = new_home AND away = new_away) OR (home = new_away AND away = new_home));
+						
+						IF FOUND THEN
+							RAISE INFO 'Si sta inserendo un match già presente a sistema';
+							ret:= -50;
+						ELSE
+							
+							SELECT * INTO lg FROM league WHERE name = new_league;
+							IF FOUND THEN
+							
+								SELECT * INTO awayt FROM team WHERE id = new_away;
+								IF FOUND THEN
+								
+										SELECT * INTO homet FROM team WHERE id = new_home;
+										IF FOUND THEN
+											
+												IF include_id = 1 THEN
+													SELECT * INTO mt FROM match WHERE id = new_id;
+													
+													IF NOT FOUND THEN
+														INSERT INTO match (id,date,stage,season,home,away,home_goal,away_goal,league,dbuser) VALUES (new_id,new_date,new_stage,new_season,new_home,new_away,new_home_goal,new_away_goal,new_league,id_user) RETURNING match.id INTO ret;
+													ELSE
+														RAISE INFO 'Il match con id % è già presente a sistema', new_id;
+														RETURN -40;
+													END IF;
+													
+													
+												ELSE
+													INSERT INTO match (date,stage,season,home,away,home_goal,away_goal,league,dbuser) VALUES (new_date,new_stage,new_season,new_home,new_away,new_home_goal,new_away_goal,new_league,id_user) RETURNING match.id INTO ret;
+												END IF;
+										
+										ELSE
+											RAISE INFO 'Home team % non presente a sistema', new_home;
+											ret:= -80;
+										END IF;
+								ELSE
+									RAISE INFO 'Away team % non presente a sistema', new_away;
+									ret:= -70;
+								END IF;
+								
+								
+							ELSE
+								RAISE INFO 'Lega % non presente a sistema', new_league;
+								ret:= -60;
+							END IF;
+
+							
+						END IF;
+						
+					END IF;
+				
+				END IF;
+			
+			END IF;
+		
+		END IF;
+		
+		RETURN ret;
+		
+	END;
+	
+$$ LANGUAGE plpgsql;
+	
+	
+	
+	
+	
+	
+	

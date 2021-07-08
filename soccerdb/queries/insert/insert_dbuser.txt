@@ -1,0 +1,87 @@
+CREATE OR REPLACE FUNCTION insert_dbuser (id_user INTEGER, new_username VARCHAR, new_password VARCHAR, new_role VARCHAR, new_betcompany VARCHAR(10)) RETURNS INTEGER AS $$
+	
+	-- funzione per inserire dbuser (id_user INTEGER, new_username VARCHAR, new_password VARCHAR, new_role VARCHAR, new_betcompany VARCHAR(10))
+	-- concesso solo ad administrator
+	-- id_user indica utente che compie inserimento
+	-- vanno specificati id_user, new_username, new_password, new_role
+	/*
+		valori di ritorno: 
+		 1  se nuovo utente viene inserito correttamente
+		-10 se non vengono specificati tutti i parametri
+		-20 se utente che sta eseguendo l'inserimento non è presente a sistema
+		-30 se utente che sta eseguendo l'inserimento non è autorizzato
+		-40 se utente che si sta inserendo è già presente a sistema
+		-50 se ruolo specificato non è valido
+		-60 se nuovo utente è partner deve essere specificato new_betcompany
+	*/
+	
+	DECLARE
+	
+		ret INTEGER;
+		usr dbuser%ROWTYPE;
+		nusr dbuser%ROWTYPE;
+
+	BEGIN
+		
+		IF id_user IS NULL OR new_username IS NULL OR new_password IS NULL OR new_role IS NULL THEN
+		
+			RAISE INFO 'bisogna obbligatoriamente specificare id_user, new_username, new_password, new_role';
+			ret := -10;
+			
+		ELSE
+		
+			SELECT * INTO usr FROM dbuser WHERE id = id_user;
+			IF FOUND THEN
+			
+				IF usr.role != 'administrator' THEN
+				
+					RAISE INFO 'utente non autorizzato ad inserire nuovi utenti';
+					ret := -30;
+					
+				ELSE
+				
+					SELECT * INTO nusr FROM dbuser WHERE username = new_username;
+					IF NOT FOUND THEN
+						
+						IF new_role = 'administrator' OR new_role = 'operator' OR new_role = 'partner' THEN
+						
+							IF new_role = 'partner' AND new_betcompany IS NULL THEN
+								RAISE INFO 'se nuovo utente è partner deve essere specificato new_betcompany';
+								ret := -60;
+							ELSE
+								INSERT INTO dbuser (username,password,role,betcompany) VALUES (new_username,new_password,new_role, new_betcompany);
+								ret :=1;
+							END IF;
+							
+						ELSE
+							RAISE INFO 'role % non valido', new_role;
+							ret := -50;
+						END IF;
+						
+						
+					ELSE
+						RAISE INFO 'utente % è già presente a sistema', new_username;
+						ret := -40;
+					END IF;
+					
+				END IF;
+				
+			ELSE
+				RAISE INFO 'utente % non presente a sistema', id_user;
+				ret := -20;
+			END IF;
+			
+		END IF;
+		
+		RETURN  ret;
+		
+	END;
+
+$$ LANGUAGE plpgsql;
+
+
+
+
+
+
+					

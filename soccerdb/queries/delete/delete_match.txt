@@ -1,0 +1,41 @@
+CREATE OR REPLACE FUNCTION delete_match (id_user INTEGER, idMatchToDelete INTEGER) RETURNS void AS $$
+
+	--funzione per eliminare match (id_user INTEGER, idMatchToDelete INTEGER)
+	--concesso solo ad operator che ha inserito il match
+	--vanno specificati tutti i parametri
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		mt match%ROWTYPE;
+
+	BEGIN
+		
+		IF id_user IS NULL OR idMatchToDelete IS NULL THEN
+			RAISE EXCEPTION 'i parametri vanno tutti obbligatoriamente specificati';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'operator' THEN
+			RAISE EXCEPTION 'utente non autorizzato a cancellare team';
+		END IF;
+				
+		SELECT * INTO mt FROM match WHERE id = idMatchToDelete;
+		IF NOT FOUND THEN	
+			RAISE EXCEPTION 'Il match % non è presente a sistema', idMatchToDelete;
+		END IF;
+		
+		IF mt.dbuser != id_user THEN
+			RAISE EXCEPTION 'Solo utente % può cancellare questo match', mt.dbuser;
+		END IF;
+		
+		DELETE FROM match WHERE id = idMatchToDelete;
+		
+	END;
+	
+$$ LANGUAGE plpgsql;
+
+

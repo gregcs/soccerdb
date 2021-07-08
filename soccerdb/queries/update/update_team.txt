@@ -1,0 +1,63 @@
+CREATE OR REPLACE FUNCTION update_team (id_user INTEGER, teamToUpdate INTEGER, new_id_team INTEGER, new_long_name VARCHAR, new_short_name VARCHAR(10)) RETURNS void AS $$ 
+
+	--funzione per aggiornare team (id_user INTEGER, teamToUpdate INTEGER, new_id_team INTEGER, new_long_name VARCHAR, new_short_name VARCHAR(10))
+	--concesso solo ad administrator
+	--è necessario specificare i parametri id_user e teamToUpdate
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		tm	team%ROWTYPE;
+		tmn team%ROWTYPE;
+		
+		update_id_team VARCHAR;
+		update_long_name VARCHAR;
+		update_short_name VARCHAR(10);
+		
+	BEGIN
+		
+		IF id_user IS NULL OR teamToUpdate IS NULL THEN
+			RAISE EXCEPTION 'bisogna specificare id_user (utente che compie aggiornamento) e teamToUpdate';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+		
+		IF usr.role != 'administrator' THEN
+			RAISE EXCEPTION 'utente non autorizzato ad aggiornare team';
+		END IF;
+
+		SELECT * INTO tm FROM team WHERE id = teamToUpdate;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'il team % non è presente a sistema', teamToUpdate;
+		END IF;
+		
+		IF new_id_team IS NOT NULL THEN
+			PERFORM * FROM team WHERE id= new_id_team;
+			IF FOUND THEN 
+				RAISE EXCEPTION 'Il team % è già presente a sistema', new_id_team;
+			ELSE
+				update_id_team := new_team_id;
+			END IF;
+		ELSE
+			update_id_team := tm.id;				
+		END IF;
+		
+		IF new_long_name IS NOT NULL THEN
+			update_long_name := new_long_name;
+		ELSE
+			update_long_name := tm.long_name;
+		END IF;
+						
+		IF new_short_name IS NOT NULL THEN
+			update_short_name := new_short_name;
+		ELSE 
+			update_short_name := tm.short_name;
+		END IF;
+		
+		UPDATE team SET id = update_id_team, long_name = update_long_name, short_name = update_short_name WHERE id = teamToUpdate;
+
+	END;
+
+$$ LANGUAGE plpgsql;

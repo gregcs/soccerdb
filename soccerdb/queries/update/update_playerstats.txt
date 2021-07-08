@@ -1,0 +1,140 @@
+CREATE OR REPLACE FUNCTION update_playerstats (
+id_user INTEGER, id_player INTEGER, upd_attribute_date DATE,
+new_player INTEGER,
+new_attribute_date DATE,
+new_overall_rating INTEGER,
+new_potential INTEGER,
+new_preferred_foot VARCHAR(10),
+new_attacking_work_rate VARCHAR(10),
+new_defensive_work_rate VARCHAR(10),
+new_crossing INTEGER,
+new_finishing INTEGER,
+new_heading_accuracy INTEGER,
+new_short_passing INTEGER,
+new_volleys INTEGER,
+new_dribbling INTEGER,
+new_curve INTEGER,
+new_free_kick_accuracy INTEGER,
+new_long_passing INTEGER,
+new_ball_control INTEGER,
+new_acceleration INTEGER,
+new_sprint_speed INTEGER,
+new_agility INTEGER,
+new_reactions INTEGER,
+new_balance INTEGER,
+new_shot_power INTEGER,
+new_jumping INTEGER,
+new_stamina INTEGER,
+new_strength INTEGER,
+new_long_shots INTEGER,
+new_aggression INTEGER,
+new_interceptions INTEGER,
+new_positioning INTEGER,
+new_vision INTEGER,
+new_penalties INTEGER,
+new_marking INTEGER,
+new_standing_tackle INTEGER,
+new_sliding_tackle INTEGER,
+new_gk_diving INTEGER,
+new_gk_handling INTEGER,
+new_gk_kicking INTEGER,
+new_gk_positioning INTEGER,
+new_gk_reflexes INTEGER)  RETURNS void AS $$ 
+
+	--funzione per aggiornare playerstats 
+	--(id_user INTEGER, player INTEGER, attribute_date DATE,new_player INTEGER,new_attribute_date DATE,new_overall_rating INTEGER,new_potential INTEGER,new_preferred_foot VARCHAR(10),new_attacking_work_rate VARCHAR(10),new_defensive_work_rate VARCHAR(10),
+	--new_crossing INTEGER,new_finishing INTEGER,new_heading_accuracy INTEGER,new_short_passing INTEGER,new_volleys INTEGER,new_dribbling INTEGER,new_curve INTEGER,new_free_kick_accuracy INTEGER,new_ball_control INTEGER,
+	--new_acceleration INTEGER,new_sprint_speed INTEGER,new_agility INTEGER,new_reactions INTEGER,new_shot_power INTEGER,new_jumping INTEGER,new_stamina INTEGER,new_long_shots INTEGER,
+	--new_aggression INTEGER,new_interceptions INTEGER,new_positioning INTEGER,new_vision INTEGER,new_penalties INTEGER,new_marking INTEGER,new_standing_tackle INTEGER,new_sliding_tackle INTEGER,new_gk_diving INTEGER,
+	--new_gk_handling INTEGER,new_gk_kicking INTEGER,new_gk_positioning INTEGER,new_gk_reflexes INTEGER)
+	--concesso solo ad administrator
+	--bisogna obbligatoriamente specificare id_user,player,attribute_date
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		ps	playerstats%ROWTYPE;
+		
+		update_player INTEGER;
+		update_attribute_date DATE;
+		
+	BEGIN
+		
+		IF id_user IS NULL OR curr_name IS NULL THEN
+			RAISE EXCEPTION 'bisogna specificare id_user (utente che compie aggiornamento), player, attribute_date';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'administrator' THEN
+			RAISE EXCEPTION 'utente non autorizzato ad aggiornare playerstats';
+		END IF;
+		
+		SELECT * INTO ps FROM playerstats WHERE player = id_player AND attribute_date = upd_attribute_date;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'playerstat %,% non è presente a sistema', id_player, upd_attribute_date;
+		END IF;
+		
+		IF new_player IS NOT NULL THEN
+			PERFORM * FROM player WHERE id = new_player;
+			IF NOT FOUND THEN
+				RAISE EXCEPTION 'player % non è presente a sistema', new_player;
+			ELSE
+				update_player := new_player;
+			END IF;
+		ELSE
+			update_player := ps.player;
+		END IF;
+		
+		IF new_attribute_date IS NOT NULL THEN
+			update_attribute_date := new_attribute_date;
+		ELSE
+			update_attribute_date := ps.attribute_date;
+		END IF;
+		
+		UPDATE playerstats SET player = update_player, attribute_date = update_attribute_date,
+								overall_rating =  new_overall_rating,
+								potential = new_potential,
+								preferred_foot = new_preferred_foot,
+								attacking_work_rate = new_attacking_work_rate,
+								defensive_work_rate = new_defensive_work_rate,
+								crossing = new_crossing,
+								finishing = new_finishing,
+								heading_accuracy = new_heading_accuracy,
+								short_passing = new_short_passing,
+								volleys = new_volleys,
+								dribbling = new_dribbling,
+								curve = new_curve,
+								free_kick_accuracy = new_free_kick_accuracy,
+								long_passing = new_long_passing,
+								ball_control = new_ball_control,
+								acceleration = new_acceleration,
+								sprint_speed = new_sprint_speed,
+								agility = new_agility,
+								reactions = new_reactions,
+								balance = new_balance,
+								shot_power = new_shot_power,
+								jumping = new_jumping, 
+								stamina = new_stamina,
+								strength = new_strength, 
+								long_shots = new_long_shots,
+								aggression = new_aggression,
+								interceptions = new_interceptions,
+								positioning = new_positioning,
+								vision = new_vision,
+								penalties = new_penalties,
+								marking = new_marking,
+								standing_tackle = new_standing_tackle, 
+								sliding_tackle = new_sliding_tackle,
+								gk_diving = new_gk_diving,
+								gk_handling = new_gk_handling,
+								gk_kicking = new_gk_kicking,
+								gk_positioning = new_gk_positioning,
+								gk_reflexes = new_gk_reflexes
+		WHERE player = id_player AND attribute_date = upd_attribute_date;			
+					
+	END;
+
+$$ LANGUAGE plpgsql;

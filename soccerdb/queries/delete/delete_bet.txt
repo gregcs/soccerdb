@@ -1,0 +1,34 @@
+CREATE OR REPLACE FUNCTION delete_bet (id_user INTEGER, matchToDelete INTEGER) RETURNS void AS $$
+
+	--funzione per cancellare bet (id_user INTEGER, matchToDelete INTEGER)
+	--concesso solo ad utente che ha inserito la bet
+	--vanno specificati tutti i parametri
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		bt	bet%ROWTYPE;
+	BEGIN
+		
+		IF id_user IS NULL OR matchToDelete IS NULL THEN
+			RAISE EXCEPTION 'i parametri vanno tutti obbligatoriamente specificati';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'partner' THEN
+			RAISE EXCEPTION 'utente non autorizzato a cancellare formation';
+		END IF;
+				
+		SELECT * INTO bt FROM bet WHERE match = matchToDelete AND dbuser = id_user;
+		IF  NOT FOUND THEN	
+			RAISE EXCEPTION 'bet non è presente a sistema';
+		END IF;
+			
+		DELETE FROM bet WHERE match = matchToDelete AND dbuser = id_user;
+		
+	END;
+	
+$$ LANGUAGE plpgsql;

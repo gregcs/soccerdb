@@ -1,0 +1,148 @@
+CREATE OR REPLACE FUNCTION update_match (id_user INTEGER, matchToUpdate INTEGER, new_id_match INTEGER, 
+		new_date DATE, new_stage INTEGER,new_season INTEGER,new_home INTEGER,new_away INTEGER,new_home_goal INTEGER,new_away_goal INTEGER, new_league VARCHAR,new_db_user INTEGER) RETURNS void AS $$ 
+
+	--funzione per aggiornare match (id_user INTEGER, matchToUpdate INTEGER, new_id_match INTEGER, new_date DATE, new_stage INTEGER,new_season INTEGER,new_home INTEGER,new_away INTEGER,new_home_goal INTEGER,new_away_goal INTEGER, new_league INTEGER,new_db_user INTEGER)
+	--concesso solo ad user con stesso id dell'attributo dbuser di match
+	--è necessario specificare id_user (utente che compie l'operazione) e matchToUpdate (da aggiornare)
+
+	DECLARE
+	
+		usr dbuser%ROWTYPE;
+		usr_new dbuser%ROWTYPE;
+		mt match%ROWTYPE;
+		lg league%ROWTYPE;
+		
+		update_id_match INTEGER;
+		update_date DATE;
+		update_stage INTEGER;
+		update_season VARCHAR;
+		update_home INTEGER;
+		update_away INTEGER;
+		update_home_goal INTEGER;
+		update_away_goal INTEGER;
+		update_league VARCHAR;
+		update_dbuser INTEGER;
+		
+	BEGIN
+		
+		IF id_user IS NULL OR matchToUpdate IS NULL THEN
+			RAISE EXCEPTION 'bisogna obbligatoriamente specificare id_user (utente che compie aggiornamento) e matchToUpdate';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+		
+		SELECT * INTO mt FROM match WHERE id = matchToUpdate;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'match % non presente a sistema', matchToUpdate;
+		END IF;
+		
+		PERFORM * FROM match WHERE league = new_league AND date = new_date AND stage = new_stage AND season = new_season AND ((home = new_home AND away = new_away) OR (home = new_away AND away = new_home));
+		IF FOUND THEN
+			RAISE EXCEPTION 'Si sta inserendo un match già presente a sistema';
+		END IF;
+			
+		IF usr.role != 'operator' THEN
+			RAISE EXCEPTION 'Solo gli utenti operator possono aggiornare i match';
+		END IF;
+		
+		IF mt.dbuser != id_user THEN
+			RAISE EXCEPTION 'Solo utente % può aggiornare questo match', mt.dbuser ;
+		END IF;
+		
+		IF new_id_match IS NOT NULL THEN
+			PERFORM * FROM match WHERE id = new_id_match;
+			IF FOUND THEN
+				RAISE EXCEPTION 'il match % è già presente a sistema', new_id_match;
+			ELSE
+				update_id_match := new_id_match;
+			END IF;
+		ELSE
+			update_id_match := mt.id;
+		END IF;
+		
+		IF new_db_user IS NOT NULL THEN
+			SELECT * INTO usr_new FROM dbuser WHERE id = new_db_user;
+			IF FOUND THEN
+				IF usr_new.role != 'operator' THEN
+					RAISE EXCEPTION 'utente % non è un operatore', usr_new.id ;
+				ELSE
+					update_dbuser := usr_new.id;
+				END IF;
+			ELSE
+				RAISE EXCEPTION 'utente % non presente a sistema', new_db_user;
+			END IF;
+		ELSE
+			update_dbuser := mt.dbuser;
+		END IF;
+		
+		IF new_league IS NOT NULL THEN
+			SELECT * INTO lg FROM league WHERE name = new_league;
+			IF FOUND THEN
+				update_league := new_league;
+			ELSE
+				RAISE EXCEPTION 'la lega % non è presente a sistema', new_league ;
+			END IF;
+		ELSE
+			update_league := mt.league;
+		END IF;
+		
+		IF new_home IS NOT NULL THEN
+			PERFORM * FROM team WHERE id = new_home;
+			IF FOUND THEN
+				update_home := new_home;
+			ELSE
+				RAISE EXCEPTION 'il team % non è presente a sistema', new_home;
+			END IF;
+		ELSE
+			update_home := tm.home;
+		END IF;
+		
+		IF new_away IS NOT NULL THEN
+			PERFORM * FROM team WHERE id = new_away;
+			IF FOUND THEN
+				update_away := new_away;
+			ELSE
+				RAISE EXCEPTION 'il team % non è presente a sistema', new_away;
+			END IF;
+		ELSE
+			update_away := tm.away;
+		END IF;
+		
+		IF new_date IS NOT NULL THEN
+			update_date := new_date;
+		ELSE
+			update_date := mt.date;
+		END IF;
+		
+		IF new_stage IS NOT NULL THEN
+			update_stage := new_stage;
+		ELSE
+			update_stage := mt.stage;
+		END IF;
+		
+		IF new_season IS NOT NULL THEN
+			update_season := new_season;
+		ELSE
+			update_season := mt.season;
+		END IF;
+		
+		IF new_home_goal IS NOT NULL THEN
+			update_home_goal := new_home_goal;
+		ELSE
+			update_home_goal := mt.home_goal;
+		END IF;
+
+		IF new_away_goal IS NOT NULL THEN
+			update_away_goal := new_away_goal;
+		ELSE
+			update_away_goal := mt.away_goal;
+		END IF;
+		
+		UPDATE match SET id = update_id_match, date = update_date, stage = update_stage, season = update_season, home = update_home, away = update_away, home_goal = update_home_goal, away_goal = update_away_goal, league = update_league, dbuser = update_dbuser WHERE id = matchToUpdate;
+		
+	END;
+
+$$ LANGUAGE plpgsql;

@@ -1,0 +1,59 @@
+CREATE MATERIALIZED VIEW ranking AS (
+
+WITH home_team_matches_won (league, season, team, matches_won, tie) AS (
+SELECT MH.league, MH.season, T.id AS team, COUNT(MH.id) AS home_matches_won, 0 AS tie
+FROM team as T
+JOIN match as MH 
+ON MH.home = T.id  
+WHERE MH.home_goal > MH.away_goal
+GROUP BY MH.league,MH.season, T.id
+),
+away_team_matches_won (league, season, team , matches_won, tie) AS (
+SELECT MA.league, MA.season, T.id AS team, COUNT(MA.id) AS away_matches_won, 0 AS tie
+FROM team as T
+JOIN match as MA
+ON MA.away = T.id 
+WHERE MA.home_goal < MA.away_goal
+GROUP BY MA.league,MA.season,T.id
+),
+home_team_matches_tie (league, season, team, matches_won, tie) AS (
+SELECT MH.league, MH.season, T.id AS team, 0 AS home_matches_won, COUNT(MH.id) AS tie
+FROM team as T
+JOIN match as MH 
+ON MH.home = T.id 
+WHERE MH.home_goal = MH.away_goal
+GROUP BY MH.league,MH.season, T.id
+),
+away_team_matches_tie (league, season, team , matches_won, tie) AS (
+SELECT MA.league, MA.season, T.id AS team, 0 AS away_matches_won,  COUNT(MA.id) AS tie
+FROM team as T
+JOIN match as MA
+ON MA.away = T.id
+WHERE MA.home_goal = MA.away_goal
+GROUP BY MA.league,MA.season,T.id
+)
+
+SELECT league,season,team, sum(matches_won) AS matches_won, sum(tie) as tie
+FROM (
+	SELECT *
+	FROM home_team_matches_won
+
+	UNION ALL
+
+	SELECT *
+	FROM away_team_matches_won
+
+	UNION ALL
+
+	SELECT *
+	FROM home_team_matches_tie
+
+	UNION ALL
+
+	SELECT *
+	FROM away_team_matches_tie
+) as d 
+group by league, season, team
+order by league, season, matches_won desc, tie desc
+
+)

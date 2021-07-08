@@ -1,0 +1,33 @@
+CREATE OR REPLACE FUNCTION delete_dbuser (id_user INTEGER, userToDelete INTEGER) RETURNS void AS $$
+
+	--funzione per cancellare dbuser (id_user INTEGER, userToDelete INTEGER)
+	--concesso solo ad administrator
+	--vanno specificati tutti i parametri
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+	BEGIN
+		
+		IF id_user IS NULL OR userToDelete IS NULL THEN
+			RAISE EXCEPTION 'i parametri vanno tutti obbligatoriamente specificati';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'administrator' THEN
+			RAISE EXCEPTION 'utente non autorizzato a cancellare dbuser';
+		END IF;
+				
+		PERFORM * FROM dbuser WHERE id = userToDelete;
+		IF  NOT FOUND THEN	
+			RAISE EXCEPTION 'dbuser % non è presente a sistema', userToDelete;
+		END IF;
+			
+		DELETE FROM dbuser WHERE id = userToDelete;
+		
+	END;
+	
+$$ LANGUAGE plpgsql;

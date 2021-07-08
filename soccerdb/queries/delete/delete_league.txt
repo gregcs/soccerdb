@@ -1,0 +1,34 @@
+CREATE OR REPLACE FUNCTION delete_league (id_user INTEGER, leagueToDelete VARCHAR) RETURNS void AS $$
+
+	--funzione per eliminare league (id_user INTEGER, leagueToDelete VARCHAR)
+	--concesso solo ad administrator
+	--vanno specificati tutti i parametri
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		lg	league%ROWTYPE;
+	BEGIN
+		
+		IF id_user IS NULL OR leagueToDelete IS NULL THEN
+			RAISE EXCEPTION 'i parametri vanno tutti obbligatoriamente specificati';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+			
+		IF usr.role != 'administrator' THEN
+			RAISE EXCEPTION 'utente non autorizzato a cancellare league';
+		END IF;
+				
+		SELECT * INTO lg FROM league WHERE name = leagueToDelete;
+		IF  NOT FOUND THEN	
+			RAISE EXCEPTION 'La league % non è presente a sistema', leagueToDelete;
+		END IF;
+			
+		DELETE FROM league WHERE name = leagueToDelete;
+		
+	END;
+	
+$$ LANGUAGE plpgsql;

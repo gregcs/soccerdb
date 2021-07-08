@@ -1,0 +1,4 @@
+1. Open a terminal
+2. go to C:\Bitnami\wappstack-7.4.7-0\postgresql\bin
+3. paste the soccerdb\software\db.sql in it
+4. run psql -U username dbname < db.sql

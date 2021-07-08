@@ -1,0 +1,90 @@
+CREATE OR REPLACE FUNCTION update_formation (id_user INTEGER, id_match INTEGER, id_player INTEGER, id_team INTEGER, new_match INTEGER, new_player INTEGER, new_team INTEGER) RETURNS void AS $$ 
+
+	--funzione per aggiornare formation (id_user INTEGER, id_match INTEGER, id_player INTEGER, id_team INTEGER, new_match INTEGER, new_player INTEGER, new_team INTEGER)
+	--concesso solo ad operator con id uguale al valore contenuto nel campo db_user del match in questione
+	--è necessario specificare i parametri id_user, id_match, id_player, id_team
+	
+	DECLARE
+		usr dbuser%ROWTYPE;
+		dbuserInsertedMatch INTEGER;
+		fm formation%ROWTYPE;
+		
+		update_id_match INTEGER;
+		update_id_team INTEGER;
+		update_id_player INTEGER;
+		
+		countFormation INTEGER;
+	BEGIN
+		
+		IF id_user IS NULL OR id_match IS NULL OR id_player IS NULL OR id_team IS NULL THEN
+			RAISE EXCEPTION 'bisogna specificare id_user (utente che compie aggiornamento), id_match, id_player, id_team';
+		END IF;
+		
+		SELECT * INTO usr FROM dbuser WHERE id = id_user;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'utente % non presente a sistema', id_user;
+		END IF;
+		
+		IF usr.role != 'operator'  THEN
+			RAISE EXCEPTION 'utente non autorizzato ad aggiornare formation';
+		END IF;
+		
+		SELECT M.dbuser INTO dbuserInsertedMatch FROM formation AS F JOIN match AS M ON F.match = M.id WHERE F.match = id_match AND F.player = id_player AND F.team = id_team;
+		IF NOT FOUND THEN
+			RAISE EXCEPTION 'formation %,%,% non è presente a sistema', id_match, id_player, id_team;
+		END IF;
+		
+		IF id_user != dbuserInsertedMatch THEN
+			RAISE EXCEPTION 'solo utente % può aggiornare formation', dbuserInsertedMatch;
+		END IF;
+		
+		SELECT * INTO fm FROM formation WHERE match = id_match AND player = id_player AND team = id_team;
+		
+		IF new_match IS NOT NULL THEN
+			PERFORM * FROM match WHERE id = new_match;
+			IF FOUND THEN
+				update_id_match := new_match;
+			ELSE
+				RAISE EXCEPTION 'match % non presente a sistema', new_match;
+			END IF;
+		ELSE
+			update_id_match := fm.match;
+		END IF;
+		
+		IF new_player IS NOT NULL THEN
+			PERFORM * FROM player WHERE id = new_player;
+			IF FOUND THEN
+				update_id_player := new_player;
+			ELSE
+				RAISE EXCEPTION 'player % non presente a sistema', new_player;
+			END IF;
+		ELSE
+			update_id_player := fm.player;
+		END IF;
+		
+		IF new_team IS NOT NULL THEN
+			PERFORM * FROM team WHERE id = new_team;
+			IF FOUND THEN
+				update_id_team := new_team;
+			ELSE
+				RAISE EXCEPTION 'team % non presente a sistema', new_team;
+			END IF;
+		ELSE
+			update_id_team := fm.team;
+		END IF;
+		
+		PERFORM * FROM formation WHERE match = update_id_match AND player = update_id_player AND team = update_id_team;
+		IF FOUND THEN 
+			RAISE EXCEPTION 'formation %,%,% è già presente a sistema', update_id_match, update_id_player, update_id_team;
+		END IF;
+
+		countFormation := (SELECT count(*)::int FROM formation WHERE match = update_id_match AND team = update_id_team);
+		IF countFormation >= 11 THEN
+			RAISE EXCEPTION 'formazione del team % per il match % è già al completo', update_id_team, update_id_match;
+		END IF;
+	
+		UPDATE formation SET match = update_id_match, player = update_id_player, team = update_id_team WHERE match = id_match AND player = id_player AND team = id_team;
+		
+	END;
+
+$$ LANGUAGE plpgsql;
